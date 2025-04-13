@@ -4,6 +4,7 @@ import torch
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
+import pandas as pd
 
 # Load labels
 with open("label.txt", "r") as f:
@@ -11,7 +12,7 @@ with open("label.txt", "r") as f:
 
 # Define model
 model = torch.hub.load('pytorch/vision', 'resnet18', pretrained=False)
-model.fc = nn.Linear(model.fc.in_features, 6)
+model.fc = nn.Linear(model.fc.in_features, len(labels))
 model.load_state_dict(torch.load("skin_disease_model.pth", map_location=torch.device("cpu")))
 model.eval()
 
@@ -24,13 +25,14 @@ transform = transforms.Compose([
 ])
 
 # Streamlit UI
+st.set_page_config(page_title="Skin Disease Classifier", layout="centered")
 st.title("🧴 Skin Disease Classifier")
 
 uploaded_file = st.file_uploader("Upload an image of the skin", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
     image = Image.open(uploaded_file).convert("RGB")
-    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
 
     input_tensor = transform(image).unsqueeze(0)
 
@@ -42,5 +44,11 @@ if uploaded_file:
     top_prediction = labels[torch.argmax(probs).item()]
 
     st.subheader(f"🩺 Prediction: `{top_prediction}`")
-    st.write("🔍 Confidence Scores:")
-    st.json(confidences)
+
+    # Prepare data for bar chart
+    df_confidences = pd.DataFrame({
+        'Confidence': list(confidences.values())
+    }, index=confidences.keys())
+
+    # Display horizontal bar chart
+    st.bar_chart(df_confidences, use_container_width=True)
